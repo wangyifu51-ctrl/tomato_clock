@@ -1,10 +1,17 @@
-const { app, BrowserWindow, Tray, Menu, Notification, ipcMain, nativeImage, globalShortcut } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+
+const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
+
+function showWindow() {
+  mainWindow.show();
+  mainWindow.focus();
+}
 
 // ─── Detect Dev / Prod ────────────────────────────────────────
 const PROD_PATH = path.join(__dirname, 'dist', 'index.html');
@@ -21,7 +28,7 @@ function createWindow() {
     transparent: true,
     hasShadow: true,
     show: false,
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -51,18 +58,14 @@ function createWindow() {
 
 // ─── System Tray ──────────────────────────────────────────────
 function createTray() {
-  const iconPath = path.join(__dirname, 'assets', 'icon.png');
-  const trayIcon = nativeImage.createFromPath(iconPath) .resize({ width: 16, height: 16 });
+  const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
   tray = new Tray(trayIcon);
   tray.setToolTip('🍅 番茄钟');
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '显示窗口',
-      click: () => {
-        mainWindow.show();
-        mainWindow.focus();
-      },
+      click: showWindow,
     },
     { type: 'separator' },
     {
@@ -75,10 +78,7 @@ function createTray() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  tray.on('double-click', () => {
-    mainWindow.show();
-    mainWindow.focus();
-  });
+  tray.on('double-click', showWindow);
 }
 
 // ─── IPC Handlers ─────────────────────────────────────────────
@@ -87,13 +87,10 @@ ipcMain.on('show-notification', (_event, title, body) => {
     const notification = new Notification({
       title,
       body,
-      icon: path.join(__dirname, 'assets', 'icon.png'),
+      icon: ICON_PATH,
     });
     notification.show();
-    notification.on('click', () => {
-      mainWindow.show();
-      mainWindow.focus();
-    });
+    notification.on('click', showWindow);
   }
 });
 

@@ -9,9 +9,9 @@ const TIMES = {
 const POMODOROS_BEFORE_LONG_BREAK = 4;
 
 const MODE_CONFIG = {
-  focus: { label: '专注', color: '#FF3B30', nextLabel: '休息' },
-  shortBreak: { label: '短休息', color: '#34C759', nextLabel: '专注' },
-  longBreak: { label: '长休息', color: '#007AFF', nextLabel: '专注' },
+  focus: { label: '专注', color: '#FF3B30' },
+  shortBreak: { label: '短休息', color: '#34C759' },
+  longBreak: { label: '长休息', color: '#007AFF' },
 };
 
 const NOTIFICATION_MESSAGES = {
@@ -42,7 +42,7 @@ function playChime() {
 }
 
 // ─── Circular Progress Component ────────────────────────────
-function CircularProgress({ remaining, total, color, isRunning }) {
+const CircularProgress = React.memo(function CircularProgress({ remaining, total, color, isRunning }) {
   const radius = 110;
   const circumference = 2 * Math.PI * radius;
   const progress = total > 0 ? remaining / total : 1;
@@ -50,7 +50,6 @@ function CircularProgress({ remaining, total, color, isRunning }) {
 
   return (
     <div className="relative w-72 h-72 flex items-center justify-center">
-      {/* Background ring */}
       <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 256 256">
         <circle
           cx="128" cy="128" r={radius}
@@ -59,7 +58,6 @@ function CircularProgress({ remaining, total, color, isRunning }) {
           strokeWidth="6"
           className="text-white/10 dark:text-white/5"
         />
-        {/* Progress ring */}
         <circle
           cx="128" cy="128" r={radius}
           fill="none"
@@ -69,10 +67,9 @@ function CircularProgress({ remaining, total, color, isRunning }) {
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           className="transition-all duration-1000 ease-linear"
-          style={{ filter: 'drop-shadow(0 0 8px rgba(255,59,48,0.3))' }}
+          style={{ filter: `drop-shadow(0 0 8px ${color}4D)` }}
         />
       </svg>
-      {/* Center: time display */}
       <div className="flex flex-col items-center z-10">
         <div className="text-6xl font-extralight tracking-[4px] tabular-nums text-white">
           {formatTime(remaining)}
@@ -83,7 +80,7 @@ function CircularProgress({ remaining, total, color, isRunning }) {
       </div>
     </div>
   );
-}
+});
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -101,10 +98,39 @@ export default function App() {
   const [cycleCount, setCycleCount] = useState(0);
 
   const intervalRef = useRef(null);
-  const remainingRef = useRef(remaining);
 
-  // Keep ref in sync
-  useEffect(() => { remainingRef.current = remaining; }, [remaining]);
+  // Stable ref to always call the latest onComplete from tick
+  const onCompleteRef = useRef(() => {});
+  onCompleteRef.current = useCallback(() => {
+    playChime();
+    if (window.electronAPI) {
+      window.electronAPI.showNotification('🍅 番茄钟', NOTIFICATION_MESSAGES[mode]);
+    }
+
+    if (mode === 'focus') {
+      setCompletedPomodoros((p) => p + 1);
+      setCycleCount((c) => c + 1);
+    }
+
+    let nextMode = 'focus';
+    if (mode === 'focus') {
+      const nextCycle = cycleCount + 1;
+      nextMode = nextCycle >= POMODOROS_BEFORE_LONG_BREAK ? 'longBreak' : 'shortBreak';
+      if (nextMode === 'longBreak') setCycleCount(0);
+    }
+
+    setMode(nextMode);
+    setRemaining(TIMES[nextMode]);
+    setStatus('idle');
+
+    // Auto-start next session after brief pause
+    setTimeout(() => {
+      setStatus('running');
+      intervalRef.current = setInterval(tickRef.current, 1000);
+    }, 500);
+  }, [mode, cycleCount]);
+
+  const tickRef = useRef(() => {});
 
   // ─── Dark mode ──────────────────────────────────────────
   useEffect(() => {
@@ -112,13 +138,12 @@ export default function App() {
   }, [darkMode]);
 
   // ─── Timer tick ─────────────────────────────────────────
-  const tick = useCallback(() => {
+  tickRef.current = useCallback(() => {
     setRemaining((prev) => {
       if (prev <= 1) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
-        // Defer timer completion
-        setTimeout(() => onComplete(), 0);
+        setTimeout(() => onCompleteRef.current(), 0);
         return 0;
       }
       return prev - 1;
@@ -129,7 +154,7 @@ export default function App() {
   const startTimer = () => {
     if (status === 'idle' || status === 'paused') {
       setStatus('running');
-      intervalRef.current = setInterval(tick, 1000);
+      intervalRef.current = setInterval(() => tickRef.current(), 1000);
     }
   };
 
@@ -147,42 +172,6 @@ export default function App() {
     setStatus('idle');
     setRemaining(TIMES[mode]);
   };
-
-  // ─── Timer completion ───────────────────────────────────
-  const onComplete = useCallback(() => {
-    playChime();
-    if (window.electronAPI) {
-      const msg = NOTIFICATION_MESSAGES[mode];
-      window.electronAPI.showNotification('🍅 番茄钟', msg);
-    }
-
-    if (mode === 'focus') {
-      setCompletedPomodoros((p) => p + 1);
-      setCycleCount((c) => c + 1);
-    }
-
-    let nextMode = 'focus';
-    if (mode === 'focus') {
-      const currentCycle = cycleCount + 1;
-      nextMode = currentCycle >= POMODOROS_BEFORE_LONG_BREAK ? 'longBreak' : 'shortBreak';
-      if (nextMode === 'longBreak') setCycleCount(0);
-    }
-
-    setMode(nextMode);
-    setRemaining(TIMES[nextMode]);
-    setStatus('idle');
-
-    // Auto-start next session
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        setStatus('running');
-        setRemaining((prev) => {
-          intervalRef.current = setInterval(tick, 1000);
-          return prev;
-        });
-      }, 500);
-    });
-  }, [mode, cycleCount, tick]);
 
   // ─── Mode switch ───────────────────────────────────────
   const switchMode = (newMode) => {
@@ -207,12 +196,6 @@ export default function App() {
   useEffect(() => {
     return () => { clearInterval(intervalRef.current); };
   }, []);
-
-  // Sync ref for onComplete
-  const modeRef = useRef(mode);
-  const cycleRef = useRef(cycleCount);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
-  useEffect(() => { cycleRef.current = cycleCount; }, [cycleCount]);
 
   // ─── Render ────────────────────────────────────────────
   return (
