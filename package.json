@@ -1,0 +1,29 @@
+{
+  "name": "tomato-clock",
+  "version": "1.0.0",
+  "description": "🍅 桌面番茄钟 - Pomodoro Timer",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "vite --config vite.config.mjs",
+    "dev:electron": "wait-on http://localhost:5173 && electron .",
+    "build": "vite build --config vite.config.mjs",
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.5.0",
+    "concurrently": "^10.0.3",
+    "electron": "^33.4.11",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.0.16",
+    "wait-on": "^9.0.10"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}
