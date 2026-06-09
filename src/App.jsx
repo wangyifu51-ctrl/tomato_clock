@@ -42,7 +42,7 @@ function playChime() {
 }
 
 // ─── Circular Progress Component ────────────────────────────
-const CircularProgress = React.memo(function CircularProgress({ remaining, total, color, isRunning }) {
+const CircularProgress = React.memo(function CircularProgress({ remaining, total, color, isRunning, darkMode }) {
   const radius = 110;
   const circumference = 2 * Math.PI * radius;
   const progress = total > 0 ? remaining / total : 1;
@@ -56,7 +56,7 @@ const CircularProgress = React.memo(function CircularProgress({ remaining, total
           fill="none"
           stroke="currentColor"
           strokeWidth="6"
-          className="text-white/10 dark:text-white/5"
+          className={`${darkMode ? 'text-white/10' : 'text-gray-200'}`}
         />
         <circle
           cx="128" cy="128" r={radius}
@@ -71,10 +71,10 @@ const CircularProgress = React.memo(function CircularProgress({ remaining, total
         />
       </svg>
       <div className="flex flex-col items-center z-10">
-        <div className="text-6xl font-extralight tracking-[4px] tabular-nums text-white">
+        <div className={`text-6xl font-extralight tracking-[4px] tabular-nums ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           {formatTime(remaining)}
         </div>
-        <div className="text-xs font-medium tracking-[2px] uppercase mt-1 text-white/50">
+        <div className={`text-xs font-medium tracking-[2px] uppercase mt-1 ${darkMode ? 'text-white/50' : 'text-gray-400'}`}>
           {isRunning ? '剩余' : remaining === total ? '' : '暂停'}
         </div>
       </div>
@@ -262,6 +262,7 @@ export default function App() {
             total={TIMES[mode]}
             color={config.color}
             isRunning={status === 'running'}
+            darkMode={darkMode}
           />
         </div>
 
