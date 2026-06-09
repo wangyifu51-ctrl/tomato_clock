@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // ─── Constants ──────────────────────────────────────────────
 const TIMES = {
@@ -99,9 +99,10 @@ export default function App() {
 
   const intervalRef = useRef(null);
 
-  // Stable ref to always call the latest onComplete from tick
+  // Ref-stable callbacks — refs bypass React.memo, so useCallback is unnecessary here.
+  // tickRef calls onCompleteRef at runtime, always reading the latest values.
   const onCompleteRef = useRef(() => {});
-  onCompleteRef.current = useCallback(() => {
+  onCompleteRef.current = () => {
     playChime();
     if (window.electronAPI) {
       window.electronAPI.showNotification('🍅 番茄钟', NOTIFICATION_MESSAGES[mode]);
@@ -126,19 +127,12 @@ export default function App() {
     // Auto-start next session after brief pause
     setTimeout(() => {
       setStatus('running');
-      intervalRef.current = setInterval(tickRef.current, 1000);
+      intervalRef.current = setInterval(() => tickRef.current(), 1000);
     }, 500);
-  }, [mode, cycleCount]);
+  };
 
   const tickRef = useRef(() => {});
-
-  // ─── Dark mode ──────────────────────────────────────────
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-  }, [darkMode]);
-
-  // ─── Timer tick ─────────────────────────────────────────
-  tickRef.current = useCallback(() => {
+  tickRef.current = () => {
     setRemaining((prev) => {
       if (prev <= 1) {
         clearInterval(intervalRef.current);
@@ -148,7 +142,7 @@ export default function App() {
       }
       return prev - 1;
     });
-  }, []);
+  };
 
   // ─── Timer controls ────────────────────────────────────
   const startTimer = () => {
